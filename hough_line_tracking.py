@@ -10,6 +10,7 @@ def resize(img):
 
 cap = cv2.VideoCapture("Ludosport_birthday_sparring.mp4")
 ret, frame = cap.read()
+frame_num = 0
 
 # Initialize video writer to save the results
 out = cv2.VideoWriter('hough_lines_tracking.avi', 
@@ -22,11 +23,11 @@ l_b = np.array([0, 0, 255 - sensitivity])   # lower hsv bound for white
 u_b = np.array([255, sensitivity, 255])     # upper hsv bound for white
 
 # parameters for Hough Line detection
-rho = 1                         # distance resolution in pixels of the Hough grid
-theta = np.pi / 180             # angular resolution in radians of the Hough grid
-threshold = 30                  # minimum number of votes (intersections in Hough grid cell)
-min_line_length = 80            # minimum number of pixels making up a line
-max_line_gap = 25               # maximum gap in pixels between connectable line segments
+rho = 1                 # distance resolution in pixels of the Hough grid
+theta = np.pi / 180     # angular resolution in radians of the Hough grid
+threshold = 40          # minimum number of votes (intersections in Hough grid cell)
+min_line_length = 25    # minimum number of pixels making up a line
+max_line_gap = 10       # maximum gap in pixels between connectable line segments
 
 while ret:
     ret, frame = cap.read()
@@ -37,12 +38,6 @@ while ret:
     m2 = blur[:, :, 2] > 200
     m3 = blur[:, :, 0] > 240
     mask = (np.logical_and(m1, m2) + m3).astype(np.uint8)
-
-    rho = 1                         # distance resolution in pixels of the Hough grid
-    theta = np.pi / 180             # angular resolution in radians of the Hough grid
-    threshold = 50                  # minimum number of votes (intersections in Hough grid cell)
-    min_line_length = 50            # minimum number of pixels making up a line
-    max_line_gap = 10               # maximum gap in pixels between connectable line segments
 
     # Run Hough on edge detected image
     # Output "lines" is an array containing endpoints of detected line segments
@@ -59,18 +54,20 @@ while ret:
 
     contours, _ = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     for i, contour in enumerate(contours):
-        if cv2.contourArea(contour) < 1000:
+        if 800 > cv2.contourArea(contour) > 60:
             cv2.drawContours(frame, contours, i, 255, -1)
     resized = resize(frame)
     
-    cv2.imshow("frame", resized)
+    cv2.imshow("Frame", resized)
+    print(f"Frame {frame_num}")
     out.write(resized)
+    frame_num += 1
 
     key = cv2.waitKey(1)
     if key == ord('q'):
         break
     if key == ord('p'):
-        cv2.waitKey(-1) #wait until any key is pressed
+        cv2.waitKey(-1) # wait until any key is pressed
 
 cap.release()
 out.release()
