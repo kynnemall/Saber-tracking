@@ -8,7 +8,7 @@ im_w = 720
 def resize(img):
     return cv2.resize(img, (im_w, im_w))
 
-cap = cv2.VideoCapture("Ludosport_birthday_sparring.mp4")
+cap = cv2.VideoCapture("test_video.mp4")
 ret, frame = cap.read()
 frame_num = 0
 
