@@ -27,13 +27,17 @@ rho = 1                 # distance resolution in pixels of the Hough grid
 theta = np.pi / 180     # angular resolution in radians of the Hough grid
 threshold = 40          # minimum number of votes (intersections in Hough grid cell)
 min_line_length = 25    # minimum number of pixels making up a line
-max_line_gap = 10       # maximum gap in pixels between connectable line segments
+max_line_gap = 5        # maximum gap in pixels between connectable line segments
 
 while ret:
     ret, frame = cap.read()
 
     # convert to HSV for simplicity
-    blur = cv2.GaussianBlur(frame, (5, 5), 0)
+    blur = cv2.GaussianBlur(frame, (3, 3), 0) # (5,5) is better when there's no sharpening
+    kernel = np.array([[0, -1, 0],
+                       [-1, 5,-1],
+                       [0, -1, 0]])
+    blur = cv2.filter2D(blur, ddepth=-1, kernel=kernel)
     m1 = blur[:, :, 1] > 200
     m2 = blur[:, :, 2] > 200
     m3 = blur[:, :, 0] > 240
@@ -51,11 +55,18 @@ while ret:
         for line in lines:
             for x1, y1, x2, y2 in line:
                 cv2.line(gray, (x1, y1), (x2, y2), 255, 2)
+                x_diff = x1 - x2
+                y_diff = y1 - y2
+                centroid = (int((x1 + x2) / 2), int((y1 + y2) / 2))
+                degrees = np.rad2deg(np.arctan(y_diff / x_diff))
+                cv2.drawMarker(frame, centroid, (0, 255, 0),
+                               markerType=cv2.MARKER_CROSS, thickness=2)
 
-    contours, _ = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    for i, contour in enumerate(contours):
-        if 800 > cv2.contourArea(contour) > 60:
-            cv2.drawContours(frame, contours, i, 255, -1)
+#    # Drawing contours is only good for visualising saber detection
+#    contours, _ = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+#    for i, contour in enumerate(contours):
+#        if 800 > cv2.contourArea(contour) > 60:
+#            cv2.drawContours(frame, contours, i, 255, -1)
     resized = resize(frame)
     
     cv2.imshow("Frame", resized)
