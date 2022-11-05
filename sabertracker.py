@@ -93,6 +93,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
             df["labels"] = db.labels_
             df = df.query("labels != -1")
             if df.shape[0] > 0:
+                sub = df[(df["centroid_x"].between(200, 1080)) & (df["centroid_y"].between(100, 620))]
                 for centroid in df[["centroid_x", "centroid_y"]].values:
                     cv2.drawMarker(frame, centroid, (0, 255, 0),
                         markerType=cv2.MARKER_CROSS, thickness=2)
