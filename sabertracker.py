@@ -126,7 +126,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
             break
         if key == ord('p'):
             cv2.waitKey(-1) # wait until any key is pressed
-        if frame_limit and frame_num == 1000:
+        if frame_limit and frame_num == 500:
             break
 
     cap.release()
