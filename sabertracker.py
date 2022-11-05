@@ -6,6 +6,10 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from tqdm import tqdm
+from sklearn.cluster import DBSCAN
+np.random.seed(42)
+pd.options.mode.chained_assignment = None  # default='warn'
+np.seterr(divide='ignore') # ignore divide by zero when calculating angle
 
 # parameters for Hough Line detection
 rho = 1                 # distance resolution in pixels of the Hough grid
@@ -33,13 +37,16 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
     pbar = tqdm(total=total_frames)
     frame_num = 0
 
-    if save_stats:
-        output_path = savename.replace(".avi", "_data.parquet")
-        data = {"frame" : [],
-                "centroid_x" : [],
-                "centroid_y" : [],
-                "angle" : [],
-                "length" : []}
+    output_path = savename.replace(".avi", "_data.parquet")
+    data = {"frame" : [],
+            "centroid_x" : [],
+            "centroid_y" : [],
+            "angle" : [],
+            "length" : []}
+
+    # instantiate DBSCAN for use throughout
+    # n_jobs parallelisation introduces too much overhead
+    db = DBSCAN(eps=5, min_samples=2)
 
     while ret:
         ret, frame = cap.read()
@@ -71,18 +78,25 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                 y_diff = y1 - y2
                 length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
                 if 100 > length > 40: # used 25 to start
+                    degrees = np.rad2deg(np.arctan(y_diff / x_diff))
+                    data["frame"].append(frame_num)
+                    data["centroid_x"].append(centroid[0])
+                    data["centroid_y"].append(centroid[1])
+                    data["angle"].append(degrees)
+                    data["length"].append(length)
+
+        # perform clustering to reduce data
+        df = pd.DataFrame(data)
+        if df.shape[0] > 0:
+            db.fit(df[["centroid_x", "centroid_y", "angle"]])
+            df["labels"] = db.labels_
+            df = df.query("labels != -1")
+            if df.shape[0] > 0:
+                for centroid in df[["centroid_x", "centroid_y"]].values:
                     cv2.drawMarker(frame, centroid, (0, 255, 0),
                         markerType=cv2.MARKER_CROSS, thickness=2)
-                    if save_stats:
-                        degrees = np.rad2deg(np.arctan(y_diff / x_diff))
-                        data["frame"].append(frame_num)
-                        data["centroid_x"].append(centroid[0])
-                        data["centroid_y"].append(centroid[1])
-                        data["angle"].append(degrees)
-                        data["length"].append(length)
-        if save_stats:
-            df = pd.DataFrame(data)
 
+        if save_stats:
             # Create a parquet table from your dataframe
             table = pa.Table.from_pandas(df)
 
