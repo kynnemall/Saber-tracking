@@ -20,8 +20,6 @@ def resize(img):
 
 def process_video(fname, save_video=False, savename=None, show_video=False, save_stats=False):
     if savename == None:
-        savename = fname.split(".")[0] + "_tracking.avi"
-    else:
         savename = "saber_tracking.avi"
 
     if save_video:
@@ -40,11 +38,12 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
         data = {"frame" : [],
                 "centroid_x" : [],
                 "centroid_y" : [],
-                "angle" : []}
+                "angle" : [],
+                "length" : []}
 
     while ret:
         ret, frame = cap.read()
-        # these channels were swapped compared to the notebook
+        # these channels were swapped in the notebook
         b = (frame[:, :, 2] > 200).astype(int)
         r = (frame[:, :, 0] > 220).astype(int)
 
@@ -66,18 +65,21 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
         # process lines
         if isinstance(lines, np.ndarray):
             for line in lines:
-                for x1, y1, x2, y2 in line:                    
-                    centroid = (int((x1 + x2) / 2), int((y1 + y2) / 2))
+                x1, y1, x2, y2 = line.ravel()                   
+                centroid = (int((x1 + x2) / 2), int((y1 + y2) / 2))
+                x_diff = x1 - x2
+                y_diff = y1 - y2
+                length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
+                if 100 > length > 40: # used 25 to start
                     cv2.drawMarker(frame, centroid, (0, 255, 0),
-                                   markerType=cv2.MARKER_CROSS, thickness=2)
+                        markerType=cv2.MARKER_CROSS, thickness=2)
                     if save_stats:
-                        x_diff = x1 - x2
-                        y_diff = y1 - y2
                         degrees = np.rad2deg(np.arctan(y_diff / x_diff))
                         data["frame"].append(frame_num)
                         data["centroid_x"].append(centroid[0])
                         data["centroid_y"].append(centroid[1])
                         data["angle"].append(degrees)
+                        data["length"].append(length)
         if save_stats:
             df = pd.DataFrame(data)
 
@@ -87,11 +89,12 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
             # Write direct to your parquet file
             pq.write_to_dataset(table, root_path=output_path)
             
-            # reset data structure for appending
+            # reset data structure
             data = {"frame" : [],
                     "centroid_x" : [],
                     "centroid_y" : [],
-                    "angle" : []}
+                    "angle" : [],
+                    "length" : []}
 
         resized = resize(frame)
         
@@ -117,14 +120,13 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
 if __name__ == "__main__":
     # set up argparser for CLI
     parser = argparse.ArgumentParser()
-    parser.add_argument("-sv", "--vidsave", action="store_true", default=False, help="Save video after processing")
-    parser.add_argument("-sh", "--show", action="store_true", default=False, help="Show video while processing")
-    parser.add_argument("-ss", "--tracksave", action="store_true", default=False, help="Save tracking data")
-    parser.add_argument("-p", "--trackproc", action="store_true", default=False, help="Process tracking data")
-    parser.add_argument("-f", "--filepath", default="test_video.mp4", help="Path to file")
-    parser.add_argument("-sn", "--savename", default=None, help="Name for saving processed video file")
+    parser.add_argument("-sv", "--vidsave", action="store_true", default=False, help="save video after processing")
+    parser.add_argument("-sh", "--show", action="store_true", default=False, help="show video while processing")
+    parser.add_argument("-ss", "--tracksave", action="store_true", default=False, help="save tracking data")
+    parser.add_argument("-p", "--trackproc", action="store_true", default=False, help="process tracking data")
+    parser.add_argument("-f", "--filepath", default="test_video.mp4", help="path to file")
+    parser.add_argument("-sn", "--savename", default=None, help="name for saving processed video file")
     args = parser.parse_args()
-    print(args)
 
     if args.trackproc:
         # process tracking data
