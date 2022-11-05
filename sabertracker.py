@@ -22,7 +22,8 @@ WIDTH = 720             # width to resize the processed video to
 def resize(img):
     return cv2.resize(img, (WIDTH, WIDTH))
 
-def process_video(fname, save_video=False, savename=None, show_video=False, save_stats=False):
+def process_video(fname, save_video=False, savename=None, show_video=False, save_stats=False,
+                    frame_limit=False):
     if savename == None:
         savename = "saber_tracking.avi"
 
@@ -33,7 +34,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
 
     cap = cv2.VideoCapture(fname)
     ret, frame = cap.read()
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    total_frames = 500 if frame_limit else int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     pbar = tqdm(total=total_frames)
     frame_num = 0
 
@@ -77,7 +78,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                 x_diff = x1 - x2
                 y_diff = y1 - y2
                 length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
-                if 100 > length > 40: # 25 or 40
+                if 100 > length > 30: # 25 or 30
                     degrees = np.rad2deg(np.arctan(y_diff / x_diff))
                     data["frame"].append(frame_num)
                     data["centroid_x"].append(centroid[0])
@@ -124,6 +125,8 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
             break
         if key == ord('p'):
             cv2.waitKey(-1) # wait until any key is pressed
+        if frame_limit and frame_num == 1000:
+            break
 
     cap.release()
     if save_video:
@@ -140,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--trackproc", action="store_true", default=False, help="process tracking data")
     parser.add_argument("-f", "--filepath", default="test_video.mp4", help="path to file")
     parser.add_argument("-sn", "--savename", default=None, help="name for saving processed video file")
+    parser.add_argument("-l", "--limit", default=False, action="store_true", help="limit processing to the first 500 frames")
     args = parser.parse_args()
 
     if args.trackproc:
@@ -147,4 +151,5 @@ if __name__ == "__main__":
         pass
     else:
         # process video
-        process_video(args.filepath, args.vidsave, args.savename, args.show, args.tracksave)
+        process_video(args.filepath, args.vidsave, args.savename, args.show, args.tracksave,
+                        args.limit)
