@@ -77,7 +77,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                 x_diff = x1 - x2
                 y_diff = y1 - y2
                 length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
-                if 100 > length > 40: # used 25 to start
+                if 100 > length > 40: # 25 or 40
                     degrees = np.rad2deg(np.arctan(y_diff / x_diff))
                     data["frame"].append(frame_num)
                     data["centroid_x"].append(centroid[0])
