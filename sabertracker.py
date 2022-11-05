@@ -95,8 +95,10 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
             df["labels"] = db.labels_
             df = df.query("labels != -1")
             if df.shape[0] > 0:
+                df = df.groupby(["frame", "labels"], as_index=False)[
+                    ["centroid_x", "centroid_y", "angle"]].mean()
                 for centroid in df[["centroid_x", "centroid_y"]].values:
-                    cv2.drawMarker(frame, centroid, (0, 255, 0),
+                    cv2.drawMarker(frame, centroid.astype(int), (0, 255, 0),
                         markerType=cv2.MARKER_CROSS, thickness=2)
 
         if save_stats:
