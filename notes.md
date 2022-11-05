@@ -12,4 +12,4 @@
 
 ### Minimum length for including line in DBSCAN?
 * 40 yields less noise, but misses some key info that 25 picks up
-* 30 yields slightly more noise than 25, but this can easily be fixed since these points are near the edge of the frame
+* 30 yields slightly more noise than 25, but this can easily be fixed since these points are near the edge of the frame -> proceed with 30
