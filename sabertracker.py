@@ -78,7 +78,9 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                 x_diff = x1 - x2
                 y_diff = y1 - y2
                 length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
-                if 100 > length > 30: # 25 or 30
+                edge_x = 200 < centroid[0] < 1080
+                edge_y = 100 < centroid[1] < 620
+                if 100 > length > 30 and edge_x and edge_y: # length of 25 or 30
                     degrees = np.rad2deg(np.arctan(y_diff / x_diff))
                     data["frame"].append(frame_num)
                     data["centroid_x"].append(centroid[0])
@@ -93,7 +95,6 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
             df["labels"] = db.labels_
             df = df.query("labels != -1")
             if df.shape[0] > 0:
-                sub = df[(df["centroid_x"].between(200, 1080)) & (df["centroid_y"].between(100, 620))]
                 for centroid in df[["centroid_x", "centroid_y"]].values:
                     cv2.drawMarker(frame, centroid, (0, 255, 0),
                         markerType=cv2.MARKER_CROSS, thickness=2)
