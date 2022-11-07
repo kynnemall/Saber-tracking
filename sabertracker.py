@@ -3,8 +3,6 @@ import cv2
 import argparse
 import numpy as np
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 from tqdm import tqdm
 from sklearn.cluster import DBSCAN
 np.random.seed(42)
