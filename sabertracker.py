@@ -12,13 +12,12 @@ pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(divide='ignore') # ignore divide by zero when calculating angle
 
 # parameters for Hough Line detection
-rho = 1                 # distance resolution in pixels of the Hough grid
-theta = np.pi / 180     # angular resolution in radians of the Hough grid
-threshold = 40          # minimum number of votes (intersections in Hough grid cell)
-min_line_length = 25    # minimum number of pixels making up a line
-max_line_gap = 10       # maximum gap in pixels between connectable line segments
+RHO = 1                 # distance resolution in pixels of the Hough grid
+THETA = np.pi / 180     # angular resolution in radians of the Hough grid
+THRESHOLD = 40          # minimum number of votes (intersections in Hough grid cell)
+MIN_LINE_LENGTH = 25    # minimum number of pixels making up a line
+MAX_LINE_GAP = 10       # maximum gap in pixels between connectable line segments
 WIDTH = 720             # width to resize the processed video to
-
 def resize(img):
     return cv2.resize(img, (WIDTH, WIDTH))
 
@@ -38,7 +37,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
     pbar = tqdm(total=total_frames)
     frame_num = 0
 
-    output_path = savename.replace(".avi", "_data.parquet")
+    output_path = savename.replace(".avi", "_data.csv")
     data = {"frame" : [],
             "centroid_x" : [],
             "centroid_y" : [],
@@ -52,35 +51,35 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
     while ret:
         ret, frame = cap.read()
         # these channels were swapped in the notebook
-        b = (frame[:, :, 2] > 200).astype(int)
-        r = (frame[:, :, 0] > 220).astype(int)
+        b = cv2.inRange(frame[:, :, 2], 200, 255)
+        r = cv2.inRange(frame[:, :, 0], 220, 255)
 
         # convert to HSV for more masking options
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        v = (hsv[:, :, 2] > 210).astype(int)
-        s = cv2.inRange(hsv[:, :, 1],  140, 175)
+        v = cv2.inRange(hsv[:, :, 2], 210, 255)
+        s = cv2.inRange(hsv[:, :, 1], 140, 175)
 
         # combine masks into one
-        m1 = np.logical_and(b, s)
-        m2 = np.logical_and(r, v)
-        mask = (m1 + m2).astype(np.uint8)
+        m1 = cv2.bitwise_and(b, s)
+        m2 = cv2.bitwise_and(r, v)
+        mask = cv2.bitwise_or(m1, m2)
 
-        # Run Hough on edge detected image
+        # Run Hough on masked image
         # Output "lines" is an array containing endpoints of detected line segments
-        lines = cv2.HoughLinesP(mask, rho, theta, threshold, np.array([]),
-            min_line_length, max_line_gap)
+        lines = cv2.HoughLinesP(mask, RHO, THETA, THRESHOLD, np.array([]), MIN_LINE_LENGTH, MAX_LINE_GAP)
 
         # process lines
         if isinstance(lines, np.ndarray):
             for line in lines:
-                x1, y1, x2, y2 = line.ravel()                   
+                x1, y1, x2, y2 = line.ravel()
                 centroid = (int((x1 + x2) / 2), int((y1 + y2) / 2))
                 x_diff = x1 - x2
                 y_diff = y1 - y2
                 length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
                 edge_x = 200 < centroid[0] < 1080
                 edge_y = 100 < centroid[1] < 620
-                if 100 > length > 30 and edge_x and edge_y: # length of 25 or 30
+                l = 100 > length > 30
+                if l and edge_x and edge_y: # length of 25 or 30
                     degrees = np.rad2deg(np.arctan(y_diff / x_diff))
                     data["frame"].append(frame_num)
                     data["centroid_x"].append(centroid[0])
@@ -91,22 +90,15 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
         # perform clustering to reduce data
         df = pd.DataFrame(data)
         if df.shape[0] > 0:
-            db.fit(df[["centroid_x", "centroid_y", "angle"]])
-            df["labels"] = db.labels_
-            df = df.query("labels != -1")
+            df["labels"] = db.fit(df[["centroid_x", "centroid_y", "angle"]].values).labels_
+            df = df[df["labels"] != -1]
             if df.shape[0] > 0:
-                df = df.groupby(["frame", "labels"], as_index=False)[
-                    ["centroid_x", "centroid_y", "angle"]].mean()
+                df = df.groupby("labels", as_index=False, sort=False).mean()
                 for centroid in df[["centroid_x", "centroid_y"]].values:
-                    cv2.drawMarker(frame, centroid.astype(int), (0, 255, 0),
-                        markerType=cv2.MARKER_CROSS, thickness=2)
+                    cv2.drawMarker(frame, centroid.astype(int), (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
 
         if save_stats:
-            # Create a parquet table from your dataframe
-            table = pa.Table.from_pandas(df)
-
-            # Write direct to your parquet file
-            pq.write_to_dataset(table, root_path=output_path)
+            df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
             
             # reset data structure
             data = {"frame" : [],
@@ -115,7 +107,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                     "angle" : [],
                     "length" : []}
 
-        resized = resize(frame)
+        resized = cv2.resize(frame, (WIDTH, WIDTH))
         
         if show_video:
             cv2.imshow("Frame", resized)
