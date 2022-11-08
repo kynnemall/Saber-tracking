@@ -5,7 +5,12 @@ import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
+# speed up sklearn
+from sklearnex import patch_sklearn
+patch_sklearn()
 from sklearn.cluster import DBSCAN
+
 np.random.seed(42)
 pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(divide='ignore') # ignore divide by zero when calculating angle
