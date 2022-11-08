@@ -1,0 +1,116 @@
+Timer unit: 1e-06 s
+
+Total time: 12.5695 s
+File: /tmp/ipykernel_20645/1786117669.py
+Function: optimized at line 9
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+     9                                           def optimized(fname, save_video=False, savename=None, show_video=False, save_stats=False,
+    10                                                               frame_limit=False):
+    11         1          3.0      3.0      0.0      if savename == None:
+    12                                                   savename = "saber_tracking.avi"
+    13                                           
+    14         1          1.0      1.0      0.0      if save_video:
+    15                                                   # Initialize video writer to save the results
+    16         2       1208.0    604.0      0.0          out = cv2.VideoWriter(savename, cv2.VideoWriter_fourcc(*'XVID'), 30.0, 
+    17         1          2.0      2.0      0.0                                   (WIDTH, WIDTH), True)
+    18                                           
+    19         1      17797.0  17797.0      0.1      cap = cv2.VideoCapture(fname)
+    20         1      16857.0  16857.0      0.1      ret, frame = cap.read()
+    21         1          5.0      5.0      0.0      total_frames = 500 if frame_limit else int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    22         1       1558.0   1558.0      0.0      pbar = tqdm(total=total_frames)
+    23         1          2.0      2.0      0.0      frame_num = 0
+    24                                           
+    25         1          2.0      2.0      0.0      output_path = savename.replace(".avi", "_data.csv")
+    26         2          2.0      1.0      0.0      data = {"frame" : [],
+    27         1          1.0      1.0      0.0              "centroid_x" : [],
+    28         1          1.0      1.0      0.0              "centroid_y" : [],
+    29         1          1.0      1.0      0.0              "angle" : [],
+    30         1          1.0      1.0      0.0              "length" : []}
+    31                                           
+    32                                               # instantiate DBSCAN for use throughout
+    33                                               # n_jobs parallelisation introduces too much overhead
+    34         1          9.0      9.0      0.0      db = DBSCAN(eps=5, min_samples=2)
+    35                                           
+    36       500        616.0      1.2      0.0      while ret:
+    37       500     517923.0   1035.8      4.1          ret, frame = cap.read()
+    38                                                   # these channels were swapped in the notebook
+    39       500     306485.0    613.0      2.4          b = cv2.inRange(frame[:, :, 2], 200, 255)
+    40       500     295981.0    592.0      2.4          r = cv2.inRange(frame[:, :, 0], 220, 255)
+    41                                           
+    42                                                   # convert to HSV for more masking options
+    43       500     228331.0    456.7      1.8          hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    44       500     288720.0    577.4      2.3          v = cv2.inRange(hsv[:, :, 2], 210, 255)
+    45       500     277023.0    554.0      2.2          s = cv2.inRange(hsv[:, :, 1], 140, 175)
+    46                                           
+    47                                                   # combine masks into one
+    48       500      73154.0    146.3      0.6          m1 = cv2.bitwise_and(b, s)
+    49       500      94883.0    189.8      0.8          m2 = cv2.bitwise_and(r, v)
+    50       500      68313.0    136.6      0.5          mask = cv2.bitwise_or(m1, m2)
+    51                                           
+    52                                                   # Run Hough on masked image
+    53                                                   # Output "lines" is an array containing endpoints of detected line segments
+    54       500    2598833.0   5197.7     20.7          lines = cv2.HoughLinesP(mask, RHO, THETA, THRESHOLD, np.array([]), MIN_LINE_LENGTH, MAX_LINE_GAP)
+    55                                           
+    56                                                   # process lines
+    57       500       2775.0      5.5      0.0          if isinstance(lines, np.ndarray):
+    58     43770      60119.0      1.4      0.5              for line in lines:
+    59     43270     119830.0      2.8      1.0                  x1, y1, x2, y2 = line.ravel()
+    60     43270     251077.0      5.8      2.0                  centroid = (int((x1 + x2) / 2), int((y1 + y2) / 2))
+    61     43270      53500.0      1.2      0.4                  x_diff = x1 - x2
+    62     43270      51179.0      1.2      0.4                  y_diff = y1 - y2
+    63     43270     137289.0      3.2      1.1                  length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
+    64     43270      58030.0      1.3      0.5                  edge_x = 200 < centroid[0] < 1080
+    65     43270      53841.0      1.2      0.4                  edge_y = 100 < centroid[1] < 620
+    66     43270      58138.0      1.3      0.5                  l = 100 > length > 30
+    67     43270      51275.0      1.2      0.4                  if l and edge_x and edge_y: # length of 25 or 30
+    68     13034      45030.0      3.5      0.4                      degrees = np.rad2deg(np.arctan(y_diff / x_diff))
+    69     13034      19388.0      1.5      0.2                      data["frame"].append(frame_num)
+    70     13034      17123.0      1.3      0.1                      data["centroid_x"].append(centroid[0])
+    71     13034      16966.0      1.3      0.1                      data["centroid_y"].append(centroid[1])
+    72     13034      16438.0      1.3      0.1                      data["angle"].append(degrees)
+    73     13034      16574.0      1.3      0.1                      data["length"].append(length)
+    74                                           
+    75                                                   # perform clustering to reduce data
+    76       500     436086.0    872.2      3.5          df = pd.DataFrame(data)
+    77       500       3724.0      7.4      0.0          if df.shape[0] > 0:
+    78       500    1516059.0   3032.1     12.1              df["labels"] = db.fit(df[["centroid_x", "centroid_y", "angle"]].values).labels_
+    79       500     464437.0    928.9      3.7              df = df[df["labels"] != -1]
+    80       500       2858.0      5.7      0.0              if df.shape[0] > 0:
+    81       459    1266759.0   2759.8     10.1                  df = df.groupby("labels", as_index=False, sort=False).mean()
+    82      1708     329442.0    192.9      2.6                  for centroid in df[["centroid_x", "centroid_y"]].values:
+    83      1249      15879.0     12.7      0.1                      cv2.drawMarker(frame, centroid.astype(int), (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
+    84                                           
+    85       500        657.0      1.3      0.0          if save_stats:
+    86       500     405769.0    811.5      3.2              df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
+    87                                                       
+    88                                                       # reset data structure
+    89      1000       2868.0      2.9      0.0              data = {"frame" : [],
+    90       500        625.0      1.2      0.0                      "centroid_x" : [],
+    91       500        609.0      1.2      0.0                      "centroid_y" : [],
+    92       500        600.0      1.2      0.0                      "angle" : [],
+    93       500        616.0      1.2      0.0                      "length" : []}
+    94                                           
+    95       500     252391.0    504.8      2.0          resized = cv2.resize(frame, (WIDTH, WIDTH))
+    96                                                   
+    97       500       1605.0      3.2      0.0          if show_video:
+    98                                                       cv2.imshow("Frame", resized)
+    99       500        875.0      1.8      0.0          if save_video:
+   100       500    1925505.0   3851.0     15.3              out.write(resized)
+   101       500       2603.0      5.2      0.0          frame_num += 1
+   102       500     114259.0    228.5      0.9          pbar.update(1)
+   103                                           
+   104       500       4797.0      9.6      0.0          key = cv2.waitKey(1)
+   105       500       1176.0      2.4      0.0          if key == ord('q'):
+   106                                                       break
+   107       500        659.0      1.3      0.0          if key == ord('p'):
+   108                                                       cv2.waitKey(-1) # wait until any key is pressed
+   109       500        749.0      1.5      0.0          if frame_limit and frame_num == 500:
+   110         1          1.0      1.0      0.0              break
+   111                                           
+   112         1       1412.0   1412.0      0.0      cap.release()
+   113         1          2.0      2.0      0.0      if save_video:
+   114         1        162.0    162.0      0.0          out.release()
+   115         1          2.0      2.0      0.0      if show_video:
+   116                                                   cv2.destroyAllWindows()
