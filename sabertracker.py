@@ -7,8 +7,8 @@ import pandas as pd
 from tqdm import tqdm
 
 # speed up sklearn
-#from sklearnex import patch_sklearn
-#patch_sklearn()
+from sklearnex import patch_sklearn
+patch_sklearn()
 from sklearn.cluster import DBSCAN
 
 np.random.seed(42)

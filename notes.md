@@ -24,7 +24,7 @@
 * Replacing Pandas query with `df[df[col] != value]` reduces time from 1.7 to 0.452 seconds!
 * Removing the `frame` column as an index (since it's constant) reduces time from 1.7 to 1.2 seconds
 * Fitting DBSCAN with `.values` rather than a `DataFrame` reduces time from 1.73 to 1.14 seconds
-* Using `sklearnex` sped up DBSCAN in the notebook, but had no effect in the script
+* Using `sklearnex` sped up DBSCAN in the notebook and in the script by about 400 milliseconds
 
 ### Results
 * Base function ran for 17.3986 seconds
