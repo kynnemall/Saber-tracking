@@ -1,5 +1,6 @@
 import os
 import cv2
+import time
 import argparse
 import numpy as np
 import pandas as pd
@@ -36,6 +37,10 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
     frame_num = 0
 
     output_path = savename.replace(".avi", "_data.csv")
+    # prevent appending to existing file
+    exists = os.path.exists(output_path)
+    if exists:
+        os.remove(output_path)
     data = {"frame" : [],
             "centroid_x" : [],
             "centroid_y" : [],
@@ -96,7 +101,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                     cv2.drawMarker(frame, centroid.astype(int), (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
 
         if save_stats:
-            df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
+            df.to_csv(output_path, mode='a', header=not exists)
             
             # reset data structure
             data = {"frame" : [],
@@ -127,6 +132,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
         out.release()
     if show_video:
         cv2.destroyAllWindows()
+    return total_frames
 
 if __name__ == "__main__":
     # set up argparser for CLI
@@ -144,6 +150,12 @@ if __name__ == "__main__":
         # process tracking data
         pass
     else:
+        start = time.time()
         # process video
-        process_video(args.filepath, args.vidsave, args.savename, args.show, args.tracksave,
+        frames = process_video(args.filepath, args.vidsave, args.savename, args.show, args.tracksave,
                         args.limit)
+        end = time.time()
+        diff = end - start
+        fps = frames / diff
+        print(f"Took {diff:.2f} seconds to process {frames} frames")
+        print(f"Processing speed -> {fps:.1f} FPS")
