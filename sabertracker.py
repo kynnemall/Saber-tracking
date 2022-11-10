@@ -55,66 +55,67 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
 
     while ret:
         ret, frame = cap.read()
-        frame = cv2.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
-        # these channels were swapped in the notebook
-        b = cv2.inRange(frame[:, :, 2], 200, 255)
-        r = cv2.inRange(frame[:, :, 0], 180, 255)
+        if ret:
+            frame = cv2.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
+            # these channels were swapped in the notebook
+            b = cv2.inRange(frame[:, :, 2], 200, 255)
+            r = cv2.inRange(frame[:, :, 0], 180, 255)
 
-        # convert to HSV for more masking options
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        v = cv2.inRange(hsv[:, :, 2], 170, 255)
-        s = cv2.inRange(hsv[:, :, 1], 140, 175)
+            # convert to HSV for more masking options
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            v = cv2.inRange(hsv[:, :, 2], 170, 255)
+            s = cv2.inRange(hsv[:, :, 1], 140, 175)
 
-        # combine masks into one
-        m1 = cv2.bitwise_and(b, s)
-        m2 = cv2.bitwise_and(r, v)
-        mask = cv2.bitwise_or(m1, m2)
+            # combine masks into one
+            m1 = cv2.bitwise_and(b, s)
+            m2 = cv2.bitwise_and(r, v)
+            mask = cv2.bitwise_or(m1, m2)
 
-        # Run Hough on masked image
-        # Output "lines" is an array containing endpoints of detected line segments
-        lines = cv2.HoughLinesP(mask, RHO, THETA, THRESHOLD, np.array([]), MIN_LINE_LENGTH, MAX_LINE_GAP)
+            # Run Hough on masked image
+            # Output "lines" is an array containing endpoints of detected line segments
+            lines = cv2.HoughLinesP(mask, RHO, THETA, THRESHOLD, np.array([]), MIN_LINE_LENGTH, MAX_LINE_GAP)
 
-        # process lines
-        if isinstance(lines, np.ndarray):
-            for line in lines:
-                x1, y1, x2, y2 = line.ravel()
-                centroid = (int((x1 + x2) / 2), int((y1 + y2) / 2))
-                x_diff = x1 - x2
-                y_diff = y1 - y2
-                length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
-                edge_x = 100 < centroid[0] < 540
-                edge_y = 50 < centroid[1] < 310
-                l = 50 > length > 10
-                if l and edge_x and edge_y: # length of 25 or 30
-                    degrees = np.rad2deg(np.arctan(y_diff / x_diff))
-                    data["frame"].append(frame_num)
-                    data["centroid_x"].append(centroid[0])
-                    data["centroid_y"].append(centroid[1])
-                    data["angle"].append(degrees)
-                    data["length"].append(length)
+            # process lines
+            if isinstance(lines, np.ndarray):
+                for line in lines:
+                    x1, y1, x2, y2 = line.ravel()
+                    centroid = (int((x1 + x2) / 2), int((y1 + y2) / 2))
+                    x_diff = x1 - x2
+                    y_diff = y1 - y2
+                    length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
+                    edge_x = 100 < centroid[0] < 540
+                    edge_y = 50 < centroid[1] < 310
+                    l = 50 > length > 10
+                    if l and edge_x and edge_y: # length of 25 or 30
+                        degrees = np.rad2deg(np.arctan(y_diff / x_diff))
+                        data["frame"].append(frame_num)
+                        data["centroid_x"].append(centroid[0])
+                        data["centroid_y"].append(centroid[1])
+                        data["angle"].append(degrees)
+                        data["length"].append(length)
 
-        # perform clustering to reduce data
-        df = pd.DataFrame(data)
-        if df.shape[0] > 0:
-            df["labels"] = db.fit(df[["centroid_x", "centroid_y", "angle"]].values).labels_
-            df = df[(df != -1).all(axis=1)]
+            # perform clustering to reduce data
+            df = pd.DataFrame(data)
             if df.shape[0] > 0:
-                df = df.groupby("labels", as_index=False, sort=False).mean()
-                for cx, cy in zip(df["centroid_x"], df["centroid_y"]):
-                    cv2.drawMarker(frame, (int(cx), int(cy)), (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
+                df["labels"] = db.fit(df[["centroid_x", "centroid_y", "angle"]].values).labels_
+                df = df[(df != -1).all(axis=1)]
+                if df.shape[0] > 0:
+                    df = df.groupby("labels", as_index=False, sort=False).mean()
+                    for cx, cy in zip(df["centroid_x"], df["centroid_y"]):
+                        cv2.drawMarker(frame, (int(cx), int(cy)), (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
 
-        if save_stats:
-            df.to_csv(output_path, index=False, mode='a',
-                        header=not os.path.exists(output_path))
-            
-            # reset data structure
-            data = {"frame" : [],
-                    "centroid_x" : [],
-                    "centroid_y" : [],
-                    "angle" : [],
-                    "length" : []}
+            if save_stats:
+                df.to_csv(output_path, index=False, mode='a',
+                            header=not os.path.exists(output_path))
+                
+                # reset data structure
+                data = {"frame" : [],
+                        "centroid_x" : [],
+                        "centroid_y" : [],
+                        "angle" : [],
+                        "length" : []}
 
-        resized = cv2.resize(frame, (WIDTH, WIDTH))
+            resized = cv2.resize(frame, (WIDTH, WIDTH))
         
         if show_video:
             cv2.imshow("Frame", frame)
