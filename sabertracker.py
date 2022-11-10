@@ -41,8 +41,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
 
     output_path = savename.replace(".avi", "_data.csv")
     # prevent appending to existing file
-    exists = os.path.exists(output_path)
-    if exists:
+    if os.path.exists(output_path):
         os.remove(output_path)
     data = {"frame" : [],
             "centroid_x" : [],
@@ -98,14 +97,15 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
         df = pd.DataFrame(data)
         if df.shape[0] > 0:
             df["labels"] = db.fit(df[["centroid_x", "centroid_y", "angle"]].values).labels_
-            df = df[df["labels"] != -1]
+            df = df[(df != -1).all(axis=1)]
             if df.shape[0] > 0:
                 df = df.groupby("labels", as_index=False, sort=False).mean()
-                for centroid in df[["centroid_x", "centroid_y"]].values:
-                    cv2.drawMarker(frame, centroid.astype(int), (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
+                for cx, cy in zip(df["centroid_x"], df["centroid_y"]):
+                    cv2.drawMarker(frame, (int(cx), int(cy)), (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
 
         if save_stats:
-            df.to_csv(output_path, mode='a', header=not exists)
+            df.to_csv(output_path, index=False, mode='a',
+                        header=not os.path.exists(output_path))
             
             # reset data structure
             data = {"frame" : [],
