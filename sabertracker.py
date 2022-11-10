@@ -18,12 +18,10 @@ np.seterr(divide='ignore') # ignore divide by zero when calculating angle
 # parameters for Hough Line detection
 RHO = 1                 # distance resolution in pixels of the Hough grid
 THETA = np.pi / 180     # angular resolution in radians of the Hough grid
-THRESHOLD = 40          # minimum number of votes (intersections in Hough grid cell)
-MIN_LINE_LENGTH = 25    # minimum number of pixels making up a line
-MAX_LINE_GAP = 10       # maximum gap in pixels between connectable line segments
+THRESHOLD = 20          # minimum number of votes (intersections in Hough grid cell)
+MIN_LINE_LENGTH = 5    # minimum number of pixels making up a line
+MAX_LINE_GAP = 2       # maximum gap in pixels between connectable line segments
 WIDTH = 720             # width to resize the processed video to
-def resize(img):
-    return cv2.resize(img, (WIDTH, WIDTH))
 
 def process_video(fname, save_video=False, savename=None, show_video=False, save_stats=False,
                     frame_limit=False):
@@ -58,13 +56,14 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
 
     while ret:
         ret, frame = cap.read()
+        frame = cv2.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
         # these channels were swapped in the notebook
         b = cv2.inRange(frame[:, :, 2], 200, 255)
-        r = cv2.inRange(frame[:, :, 0], 220, 255)
+        r = cv2.inRange(frame[:, :, 0], 180, 255)
 
         # convert to HSV for more masking options
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        v = cv2.inRange(hsv[:, :, 2], 210, 255)
+        v = cv2.inRange(hsv[:, :, 2], 170, 255)
         s = cv2.inRange(hsv[:, :, 1], 140, 175)
 
         # combine masks into one
@@ -84,9 +83,9 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                 x_diff = x1 - x2
                 y_diff = y1 - y2
                 length = (x_diff * x_diff + y_diff * y_diff) ** 0.5
-                edge_x = 200 < centroid[0] < 1080
-                edge_y = 100 < centroid[1] < 620
-                l = 100 > length > 30
+                edge_x = 100 < centroid[0] < 540
+                edge_y = 50 < centroid[1] < 310
+                l = 50 > length > 10
                 if l and edge_x and edge_y: # length of 25 or 30
                     degrees = np.rad2deg(np.arctan(y_diff / x_diff))
                     data["frame"].append(frame_num)
@@ -118,7 +117,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
         resized = cv2.resize(frame, (WIDTH, WIDTH))
         
         if show_video:
-            cv2.imshow("Frame", resized)
+            cv2.imshow("Frame", frame)
         if save_video:
             out.write(resized)
         frame_num += 1
