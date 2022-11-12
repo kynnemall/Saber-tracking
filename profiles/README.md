@@ -8,8 +8,12 @@
 | Yes             | 33838    | 432.2    | 78.3 |
 
 
-### Replaced Pandas with Nunmpy and HDF5
+### Replaced Pandas with Numpy and HDF5
 | Method with FVS | Frames   | Seconds  | FPS   |
 | --------------- | -------- | -------- | ----- |
 | No              | 33838    | 330.29   | 102.4 |
-| Yes             | 33838    | 316.97   | 106.8 |
+| Yes (250)       | 33838    | 316.97   | 106.8 |
+| Yes (100)       | 33838    | 317.68   | 106.5 |
+| Yes (50)        | 33838    | 323.23   | 104.7 |
+| Yes (500)       | 33838    | 327.39   | 103.4 |
+
