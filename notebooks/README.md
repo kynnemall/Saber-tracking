@@ -41,4 +41,6 @@ However, this will only save 1 second when processing the full 33,838 frame vide
 * The only way to achieve further performance gains might be to use `FileVideoStream` from `imutils`
 
 ### Results
-* 
+* Without `FileVideoStream` -> 102.4 FPS
+* With `FileVideoStream` and `queue_size=250` -> 106.8 FPS
+* Is there an optimal `queue_size` to get better performance?

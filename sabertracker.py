@@ -1,15 +1,12 @@
 import os
 import cv2
 import time
+import h5py
 import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-
-# speed up sklearn
-from sklearnex import patch_sklearn
-patch_sklearn()
-from sklearn.cluster import DBSCAN
+from sklearnex.cluster import DBSCAN
 
 np.random.seed(42)
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -52,6 +49,9 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
     while ret:
         ret, frame = cap.read()
         if ret:
+            # reset data structure
+            data = np.array([])
+
             frame = cv2.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
             # these channels were swapped in the notebook
             b = cv2.inRange(frame[:, :, 2], 200, 255)
@@ -73,7 +73,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
 
             # process lines
             if isinstance(lines, np.ndarray):
-                lines = np.squeeze(lines)
+                lines = lines[:, 0, :]
                 cx = lines[:, [0, 2]].mean(axis=1).reshape(-1, 1)
                 cy = lines[:, [1, 3]].mean(axis=1).reshape(-1, 1)
                 frames = np.zeros(cx.shape) + frame_num
@@ -100,7 +100,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                         centroid = data[data[:, -1] == i][:, 1:3].mean(axis=0).astype(int)
                         cv2.drawMarker(frame, centroid, (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
 
-            if save_stats:
+            if save_stats and data.size > 0:
                 # save tracking data
                 if not os.path.exists(output_path):
                     with h5py.File(output_path, "w") as hf:
@@ -113,9 +113,6 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                         new_shape = (hf["data"].shape[0] + data.shape[0])
                         hf["data"].resize(new_shape, axis=0)
                         hf["data"][-data.shape[0]:] = data
-
-                # reset data structure
-                data = np.array([])
 
             resized = cv2.resize(frame, (WIDTH, WIDTH))
 
