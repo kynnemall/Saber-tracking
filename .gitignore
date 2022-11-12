@@ -1,5 +1,4 @@
 *.mp4
 *.avi
-*.csv
+*.h5
 notebooks/.ipynb_checkpoints/*
-*.parquet/*

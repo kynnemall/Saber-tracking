@@ -33,25 +33,31 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
         out = cv2.VideoWriter(savename, cv2.VideoWriter_fourcc(*'XVID'), 30.0, 
                                  (WIDTH, WIDTH), True)
 
+    # use OpenCV to get total frames
     cap = cv2.VideoCapture(fname)
-    ret, frame = cap.read()
     total_frames = 500 if frame_limit else int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+    
     pbar = tqdm(total=total_frames)
     frame_num = 0
 
-    output_path = savename.replace(".avi", ".h5")
+    output_path = savename.replace(".avi", "_data.csv")
     # prevent appending to existing file
-    if os.path.exists(output_path):
+    exists = os.path.exists(output_path)
+    if exists:
         os.remove(output_path)
+    data = np.array([])
 
     # instantiate DBSCAN for use throughout
     # n_jobs parallelisation introduces too much overhead
     db = DBSCAN(eps=5, min_samples=2)
-    data = np.array([])
+    
+    # start imutils streaming
+    fvs = FileVideoStream(fname, queue_size=250).start()
 
-    while ret:
-        ret, frame = cap.read()
-        if ret:
+    while fvs.more():
+        frame = fvs.read()
+        if isinstance(frame, np.ndarray):
             frame = cv2.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
             # these channels were swapped in the notebook
             b = cv2.inRange(frame[:, :, 2], 200, 255)
@@ -134,7 +140,7 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
             if frame_limit and frame_num == 500:
                 break
 
-    cap.release()
+    fvs.stop()
     if save_video:
         out.release()
     if show_video:

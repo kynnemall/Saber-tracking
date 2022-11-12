@@ -32,3 +32,13 @@
 * <strong>33.6% reduction in time to process 500 frames</strong>
 * According to `tqdm`, this optimized version ran from script in ~9 seconds! That's ~56 FPS!
 
+## Optimizations: round 2
+* Using `OpenCV` to mask line data doesn't improve performance over `numpy` masking (~35-36 microseconds)
+* Tetsing `Numba` on this function requires the removal of `np.linalg.norm` from the function since they don't currently support the axis argument in this function. 
+<strong>This is an open issue on their [Github](https://github.com/numba/numba/pull/7785)</strong>, but it reduces the time to ~8 microseconds even when moving the `norm` function outside the "jitted" function -> 4.5x speedup
+However, this will only save 1 second when processing the full 33,838 frame video used for testing, so it won't be incorporated into the main function
+* Replacing `Pandas` with pure `Numpy` and saving to HDF5 files instead of CSV allows frames to be processed at a rate of 94 FPS!
+* The only way to achieve further performance gains might be to use `FileVideoStream` from `imutils`
+
+### Results
+* 
