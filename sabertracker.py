@@ -95,9 +95,11 @@ def process_video(fname, save_video=False, savename=None, show_video=False, save
                 db.fit(data[:, 1:4])
                 data = np.concatenate((data, db.labels_.reshape(-1, 1)), axis=1)
                 data = data[data[:, -1] != -1]
-                if data.size > 0:
-                    for i in np.unique(data[:, -1]):
-                        centroid = data[data[:, -1] == i][:, 1:3].mean(axis=0).astype(int)
+                data = data[data[:, -1].argsort()]
+                data = np.split(data, np.unique(data[:, -1], return_index=True)[1][1:])
+                data = np.array([i.mean(axis=0) for i in data])
+                if data.size > 0 and show_video:
+                    for centroid in data[:, 1:3].astype(int):
                         cv2.drawMarker(frame, centroid, (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
 
             if save_stats and data.size > 0:

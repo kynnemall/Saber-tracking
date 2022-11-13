@@ -1,7 +1,7 @@
 Timer unit: 1e-06 s
 
-Total time: 5.29227 s
-File: /tmp/ipykernel_14650/2430962581.py
+Total time: 355.133 s
+File: /tmp/ipykernel_27649/1415191398.py
 Function: optimized at line 1
 
 Line #      Hits         Time  Per Hit   % Time  Line Contents
@@ -11,114 +11,124 @@ Line #      Hits         Time  Per Hit   % Time  Line Contents
      3         1          3.0      3.0      0.0      if savename == None:
      4                                                   savename = "saber_tracking.avi"
      5                                           
-     6         1          1.0      1.0      0.0      if save_video:
+     6         1          2.0      2.0      0.0      if save_video:
      7                                                   # Initialize video writer to save the results
-     8         2       1305.0    652.5      0.0          out = cv2.VideoWriter(savename, cv2.VideoWriter_fourcc(*'XVID'), 30.0, 
+     8         2       1269.0    634.5      0.0          out = cv2.VideoWriter(savename, cv2.VideoWriter_fourcc(*'XVID'), 30.0, 
      9         1          1.0      1.0      0.0                                   (WIDTH, WIDTH), True)
     10                                           
-    11         1      20671.0  20671.0      0.4      cap = cv2.VideoCapture(fname)
-    12         1      15889.0  15889.0      0.3      ret, frame = cap.read()
-    13         1          3.0      3.0      0.0      total_frames = 500 if frame_limit else int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    14         1       1901.0   1901.0      0.0      pbar = tqdm(total=total_frames)
-    15         1          2.0      2.0      0.0      frame_num = 0
-    16                                           
-    17         1          2.0      2.0      0.0      output_path = savename.replace(".avi", ".h5")
-    18                                               # prevent appending to existing file
-    19         1        233.0    233.0      0.0      if os.path.exists(output_path):
-    20         1         99.0     99.0      0.0          os.remove(output_path)
-    21                                           
-    22                                               # instantiate DBSCAN for use throughout
-    23                                               # n_jobs parallelisation introduces too much overhead
-    24         1         11.0     11.0      0.0      db = DBSCAN(eps=5, min_samples=2)
-    25         1         13.0     13.0      0.0      data = np.array([])
-    26                                           
-    27       500        497.0      1.0      0.0      while ret:
-    28       500     483613.0    967.2      9.1          ret, frame = cap.read()
-    29       500       1219.0      2.4      0.0          if ret:
-    30       500     141736.0    283.5      2.7              frame = cv2.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
-    31                                                       # these channels were swapped in the notebook
-    32       500      83023.0    166.0      1.6              b = cv2.inRange(frame[:, :, 2], 200, 255)
-    33       500      68870.0    137.7      1.3              r = cv2.inRange(frame[:, :, 0], 180, 255)
-    34                                           
-    35                                                       # convert to HSV for more masking options
-    36       500      67896.0    135.8      1.3              hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    37       500      70960.0    141.9      1.3              v = cv2.inRange(hsv[:, :, 2], 170, 255)
-    38       500      66961.0    133.9      1.3              s = cv2.inRange(hsv[:, :, 1], 140, 175)
-    39                                           
-    40                                                       # combine masks into one
-    41       500      19215.0     38.4      0.4              m1 = cv2.bitwise_and(b, s)
-    42       500      25194.0     50.4      0.5              m2 = cv2.bitwise_and(r, v)
-    43       500      17460.0     34.9      0.3              mask = cv2.bitwise_or(m1, m2)
-    44                                           
-    45                                                       # Run Hough on masked image
-    46                                                       # Output "lines" is an array containing endpoints of detected line segments
-    47       500     908632.0   1817.3     17.2              lines = cv2.HoughLinesP(mask, RHO, THETA, THRESHOLD, np.array([]), MIN_LINE_LENGTH, MAX_LINE_GAP)
-    48                                           
-    49                                                       # process lines
-    50       500       2330.0      4.7      0.0              if isinstance(lines, np.ndarray):
-    51       500       9312.0     18.6      0.2                  lines = np.squeeze(lines)
-    52       500      49770.0     99.5      0.9                  cx = lines[:, [0, 2]].mean(axis=1).reshape(-1, 1)
-    53       500      13073.0     26.1      0.2                  cy = lines[:, [1, 3]].mean(axis=1).reshape(-1, 1)
-    54       500       4907.0      9.8      0.1                  frames = np.zeros(cx.shape) + frame_num
-    55       500       5747.0     11.5      0.1                  slopes = (lines[:, 3] - lines[:, 1]) / (lines[:, 2] - lines[:, 0])
-    56       500       3718.0      7.4      0.1                  angles = np.rad2deg(np.arctan(slopes)).reshape(-1, 1)
-    57       500      23557.0     47.1      0.4                  lengths = np.linalg.norm(lines[:, :2] - lines[:, 2:], axis=1).reshape(-1, 1)
-    58       500       6641.0     13.3      0.1                  data = np.concatenate((frames, cx, cy, angles, lengths), axis=1)
-    59                                           
-    60                                                           # filter by edge conditions and line length
-    61       500       6674.0     13.3      0.1                  xedge_mask = np.logical_and(data[:, 1] > 100, data[:, 1] < 540)
-    62       500       3243.0      6.5      0.1                  yedge_mask = np.logical_and(data[:, 2] > 50, data[:, 2] < 310)
-    63       500       2901.0      5.8      0.1                  len_mask = np.logical_and(data[:, -1] > 10, data[:, -1] < 50)
-    64       500       1094.0      2.2      0.0                  mask = np.logical_and(len_mask, xedge_mask)
-    65       500        909.0      1.8      0.0                  mask = np.logical_and(mask, yedge_mask)
-    66       500       3924.0      7.8      0.1                  data = data[len_mask]
+    11                                               # use OpenCV to get total frames
+    12         1      19395.0  19395.0      0.0      cap = cv2.VideoCapture(fname)
+    13         1         17.0     17.0      0.0      total_frames = 500 if frame_limit else int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    14         1        578.0    578.0      0.0      cap.release()
+    15                                               
+    16         1       1402.0   1402.0      0.0      pbar = tqdm(total=total_frames)
+    17         1          3.0      3.0      0.0      frame_num = 0
+    18                                           
+    19         1          2.0      2.0      0.0      output_path = savename.replace(".avi", "_data.h5")
+    20                                               # prevent appending to existing file
+    21         1         19.0     19.0      0.0      exists = os.path.exists(output_path)
+    22         1          1.0      1.0      0.0      if exists:
+    23         1        171.0    171.0      0.0          os.remove(output_path)
+    24                                           
+    25                                               # instantiate DBSCAN for use throughout
+    26                                               # n_jobs parallelisation introduces too much overhead
+    27         1          9.0      9.0      0.0      db = DBSCAN(eps=5, min_samples=2)
+    28                                               
+    29                                               # start imutils streaming
+    30         1      16223.0  16223.0      0.0      fvs = FileVideoStream(fname, queue_size=250).start()
+    31                                           
+    32     33840     540029.0     16.0      0.2      while fvs.more():
+    33     33839     848289.0     25.1      0.2          frame = fvs.read()
+    34     33839      88765.0      2.6      0.0          if isinstance(frame, np.ndarray):
+    35                                                       # reset data structure
+    36     33838     341216.0     10.1      0.1              data = np.array([])
+    37                                           
+    38     33838   12214949.0    361.0      3.4              frame = cv2.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
+    39                                                       # these channels were swapped in the notebook
+    40     33838    5903372.0    174.5      1.7              b = cv2.inRange(frame[:, :, 2], 200, 255)
+    41     33838    4923381.0    145.5      1.4              r = cv2.inRange(frame[:, :, 0], 180, 255)
+    42                                           
+    43                                                       # convert to HSV for more masking options
+    44     33838    4786312.0    141.4      1.3              hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    45     33838    4753079.0    140.5      1.3              v = cv2.inRange(hsv[:, :, 2], 170, 255)
+    46     33838    4625384.0    136.7      1.3              s = cv2.inRange(hsv[:, :, 1], 140, 175)
+    47                                           
+    48                                                       # combine masks into one
+    49     33838    1178123.0     34.8      0.3              m1 = cv2.bitwise_and(b, s)
+    50     33838    1465964.0     43.3      0.4              m2 = cv2.bitwise_and(r, v)
+    51     33838    1146392.0     33.9      0.3              mask = cv2.bitwise_or(m1, m2)
+    52                                           
+    53                                                       # Run Hough on masked image
+    54                                                       # Output "lines" is an array containing endpoints of detected line segments
+    55     33838   75840329.0   2241.3     21.4              lines = cv2.HoughLinesP(mask, RHO, THETA, THRESHOLD, np.array([]), MIN_LINE_LENGTH, MAX_LINE_GAP)
+    56                                           
+    57                                                       # process lines
+    58     33838     158096.0      4.7      0.0              if isinstance(lines, np.ndarray):
+    59     33831     151560.0      4.5      0.0                  lines = lines[:, 0, :]
+    60     33831    3501196.0    103.5      1.0                  cx = lines[:, [0, 2]].mean(axis=1).reshape(-1, 1)
+    61     33831     957355.0     28.3      0.3                  cy = lines[:, [1, 3]].mean(axis=1).reshape(-1, 1)
+    62     33831     370833.0     11.0      0.1                  frames = np.zeros(cx.shape) + frame_num
+    63     33831     418213.0     12.4      0.1                  slopes = (lines[:, 3] - lines[:, 1]) / (lines[:, 2] - lines[:, 0])
+    64     33831     326963.0      9.7      0.1                  angles = np.rad2deg(np.arctan(slopes)).reshape(-1, 1)
+    65     33831    1718516.0     50.8      0.5                  lengths = np.linalg.norm(lines[:, :2] - lines[:, 2:], axis=1).reshape(-1, 1)
+    66     33831     495848.0     14.7      0.1                  data = np.concatenate((frames, cx, cy, angles, lengths), axis=1)
     67                                           
-    68                                                       # perform clustering to reduce data
-    69       500        989.0      2.0      0.0              if data.size > 0:
-    70       500     330421.0    660.8      6.2                  db.fit(data[:, 1:4])
-    71       500       7480.0     15.0      0.1                  data = np.concatenate((data, db.labels_.reshape(-1, 1)), axis=1)
-    72       500       9833.0     19.7      0.2                  data = data[data[:, -1] != -1]
-    73       500        973.0      1.9      0.0                  if data.size > 0:
-    74      4874      32201.0      6.6      0.6                      for i in np.unique(data[:, -1]):
-    75      4374     102689.0     23.5      1.9                          centroid = data[data[:, -1] == i][:, 1:3].mean(axis=0).astype(int)
-    76      4374      30414.0      7.0      0.6                          cv2.drawMarker(frame, centroid, (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
-    77                                           
-    78       500        683.0      1.4      0.0              if save_stats:
-    79                                                           # save tracking data
-    80       500       9456.0     18.9      0.2                  if not os.path.exists(output_path):
-    81         1        632.0    632.0      0.0                      with h5py.File(output_path, "w") as hf:
-    82         2       1137.0    568.5      0.0                          hf.create_dataset("data", data=data, 
-    83         1          1.0      1.0      0.0                                            compression="gzip",
-    84         1          2.0      2.0      0.0                                            chunks=True, maxshape=(None, 6))
-    85                                                           else:
-    86       499     170902.0    342.5      3.2                      with h5py.File(output_path, "a") as hf:
-    87                                                                   # append new data
-    88       499     126059.0    252.6      2.4                          new_shape = (hf["data"].shape[0] + data.shape[0])
-    89       499      82793.0    165.9      1.6                          hf["data"].resize(new_shape, axis=0)
-    90       499     323033.0    647.4      6.1                          hf["data"][-data.shape[0]:] = data
-    91                                           
-    92                                                           # reset data structure
-    93       500       4585.0      9.2      0.1                  data = np.array([])
-    94                                           
-    95       500     177439.0    354.9      3.4              resized = cv2.resize(frame, (WIDTH, WIDTH))
-    96                                           
-    97       500       1134.0      2.3      0.0              if show_video:
-    98                                                           cv2.imshow("Frame", frame)
-    99       500        701.0      1.4      0.0              if save_video:
-   100       500    1646364.0   3292.7     31.1                  out.write(resized)
-   101       500       2011.0      4.0      0.0              frame_num += 1
-   102       500      89428.0    178.9      1.7              pbar.update(1)
-   103                                           
-   104       500       3674.0      7.3      0.1              key = cv2.waitKey(1)
-   105       500       1254.0      2.5      0.0              if key == ord('q'):
-   106                                                           break
-   107       500        622.0      1.2      0.0              if key == ord('p'):
-   108                                                           cv2.waitKey(-1) # wait until any key is pressed
-   109       500        580.0      1.2      0.0              if frame_limit and frame_num == 500:
-   110         1          1.0      1.0      0.0                  break
-   111                                           
-   112         1       1345.0   1345.0      0.0      cap.release()
-   113         1          3.0      3.0      0.0      if save_video:
-   114         1        221.0    221.0      0.0          out.release()
-   115         1          1.0      1.0      0.0      if show_video:
-   116                                                   cv2.destroyAllWindows()
+    68                                                           # filter by edge conditions and line length
+    69     33831     475513.0     14.1      0.1                  xedge_mask = np.logical_and(data[:, 1] > 100, data[:, 1] < 540)
+    70     33831     212551.0      6.3      0.1                  yedge_mask = np.logical_and(data[:, 2] > 50, data[:, 2] < 310)
+    71     33831     208018.0      6.1      0.1                  len_mask = np.logical_and(data[:, -1] > 10, data[:, -1] < 50)
+    72     33831      89869.0      2.7      0.0                  mask = np.logical_and(len_mask, xedge_mask)
+    73     33831      71859.0      2.1      0.0                  mask = np.logical_and(mask, yedge_mask)
+    74     33831     310684.0      9.2      0.1                  data = data[len_mask]
+    75                                           
+    76                                                       # perform clustering to reduce data
+    77     33838      75514.0      2.2      0.0              if data.size > 0:
+    78     33829   23141396.0    684.1      6.5                  db.fit(data[:, 1:4])
+    79     33829     521932.0     15.4      0.1                  data = np.concatenate((data, db.labels_.reshape(-1, 1)), axis=1)
+    80     33829     779738.0     23.0      0.2                  data = data[data[:, -1] != -1]
+    81     33829     372816.0     11.0      0.1                  data = data[data[:, -1].argsort()]
+    82     33829    4186200.0    123.7      1.2                  data = np.split(data, np.unique(data[:, -1], return_index=True)[1][1:])
+    83     33829    5117842.0    151.3      1.4                  data = np.array([i.mean(axis=0) for i in data])
+    84     33829      75147.0      2.2      0.0                  if data.size > 0 and show_video:
+    85                                                               for centroid in data[:, 1:3].astype(int):
+    86                                                                   cv2.drawMarker(frame, centroid, (0, 255, 0), markerType=cv2.MARKER_CROSS, thickness=2)
+    87                                           
+    88     33838      52348.0      1.5      0.0              if save_stats and data.size > 0:
+    89                                                           # save tracking data
+    90     33829     720627.0     21.3      0.2                  if not os.path.exists(output_path):
+    91         1        484.0    484.0      0.0                      with h5py.File(output_path, "w") as hf:
+    92         2        717.0    358.5      0.0                          hf.create_dataset("data", data=data, 
+    93         1          1.0      1.0      0.0                                            compression="gzip",
+    94         1          1.0      1.0      0.0                                            chunks=True, maxshape=(None, 6))
+    95                                                           else:
+    96     33828   11426421.0    337.8      3.2                      with h5py.File(output_path, "a") as hf:
+    97                                                                   # append new data
+    98     33828    8840273.0    261.3      2.5                          new_shape = (hf["data"].shape[0] + data.shape[0])
+    99     33828    6030059.0    178.3      1.7                          hf["data"].resize(new_shape, axis=0)
+   100     33828   21369535.0    631.7      6.0                          hf["data"][-data.shape[0]:] = data
+   101                                           
+   102                                                           # reset data structure
+   103     33829     308416.0      9.1      0.1                  data = np.array([])
+   104                                           
+   105     33838   13204065.0    390.2      3.7              resized = cv2.resize(frame, (WIDTH, WIDTH))
+   106                                           
+   107     33838      89172.0      2.6      0.0              if show_video:
+   108                                                           cv2.imshow("Frame", frame)
+   109     33838      59130.0      1.7      0.0              if save_video:
+   110     33838  126484411.0   3737.9     35.6                  out.write(resized)
+   111     33838     157290.0      4.6      0.0              frame_num += 1
+   112     33838    3502660.0    103.5      1.0              pbar.update(1)
+   113                                           
+   114     33838     268694.0      7.9      0.1              key = cv2.waitKey(1)
+   115     33838      89494.0      2.6      0.0              if key == ord('q'):
+   116                                                           break
+   117     33838      50119.0      1.5      0.0              if key == ord('p'):
+   118                                                           cv2.waitKey(-1) # wait until any key is pressed
+   119     33838      45675.0      1.3      0.0              if frame_limit and frame_num == 500:
+   120                                                           break
+   121                                           
+   122         1         18.0     18.0      0.0      fvs.stop()
+   123         1          2.0      2.0      0.0      if save_video:
+   124         1       1486.0   1486.0      0.0          out.release()
+   125         1          2.0      2.0      0.0      if show_video:
+   126                                                   cv2.destroyAllWindows()

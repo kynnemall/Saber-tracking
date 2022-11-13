@@ -1,4 +1,5 @@
 # General points
+<strong>All FPS are reported when processing video, saving both statistics and video with centroids</strong>
 
 ### DBSCAN to reduce points contributing to saber detection?
 * DBSCAN fits fast to a single frame (**less than 10 milliseconds!**) and clusters points well with centroid coordinates and the line segment angle, regardless of distance metric
@@ -43,4 +44,5 @@ However, this will only save 1 second when processing the full 33,838 frame vide
 ### Results
 * Without `FileVideoStream` -> 102.4 FPS
 * With `FileVideoStream` and `queue_size=250` -> 106.8 FPS
-* Is there an optimal `queue_size` to get better performance?
+* Is there an optimal `queue_size` to get better performance? 250 seems to be optimal (see README.md in profiles folder)
+* Customizing the `FileVideoStream` class to include the masking process when getting frames didn't improve performance
